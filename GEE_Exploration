@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-GEE Exploration Data
+GEE Exploration Data - Python
 Created on Fri Aug 30 10:51:24 2024
 
 @author: Tayler LaSharr
+
 """
 
 # import the libraries that we need
