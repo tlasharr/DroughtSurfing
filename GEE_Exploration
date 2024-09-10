@@ -3,6 +3,9 @@
 GEE Exploration Data - Python
 Created on Fri Aug 30 10:51:24 2024
 
+This code is just to familiarize myself with how to use GEE, and learn to code in 
+Python. This is not part of any formal analyses. 
+
 @author: Tayler LaSharr
 
 """
@@ -15,19 +18,24 @@ from datetime import datetime
 # initialize the Earth Engine module
 ee.Initialize()
 
-# load the shapefile (this is saved as an asset in GEE)
+## load the shapefile (this is saved as an asset in GEE)
+## can change it out for a few different ones if we are interested in different areas
 roi = ee.FeatureCollection('projects/ee-tlasharr/assets/UT_Paunsaugunt')
+# roi = ee.FeatureCollection('projects/ee-tlasharr/assets/NV_Izzenhood')
+# roi = ee.FeatureCollection('projects/ee-tlasharr/assets/WY_Sublette')
 
-# get the projection and print it out
+## we will need to reproject the shapefile so that it matches the VI from GEE
+
+# so first, we will get the projection and print it out
 roi_projection = roi.first().geometry().projection()
 print('Projection of the shapefile:', roi_projection.getInfo())
 
-# load MODIS NDVI dataset (MOD13Q1)
+# then we can load MODIS NDVI dataset (MOD13Q1)
 modis_ndvi = ee.ImageCollection('MODIS/006/MOD13Q1') \
                 .filterDate('2018-01-01', '2023-12-31') \
                 .select('NDVI')
 
-# load VIIRS Vegetation Indices dataset (VNP13A1)
+# and then load VIIRS Vegetation Indices dataset (VNP13A1)
 viirs_ndvi = ee.ImageCollection('NASA/VIIRS/002/VNP13A1') \
                 .filterDate('2018-01-01', '2023-12-31') \
                 .select('NDVI')
@@ -36,43 +44,48 @@ viirs_evi = ee.ImageCollection('NASA/VIIRS/002/VNP13A1') \
                 .filterDate('2018-01-01', '2023-12-31') \
                 .select('EVI')
 
-# load MODIS snow cover dataset
+# we will need to deal with snow cover, so next, we load MODIS snow cover dataset
 modis_snow = ee.ImageCollection('MODIS/006/MOD10A1') \
                 .filterDate('2018-01-01', '2023-12-31') \
                 .select('NDSI_Snow_Cover')
 
-# reproject the shapefile
-modis_projection = modis_ndvi.first().projection()
-target_crs = modis_projection.crs()
-target_crs_scale = modis_projection.nominalScale()
+## now we can reproject the shapefile
+modis_projection = modis_ndvi.first().projection() ## this is the projection of the first image of the modis ndvi data
+target_crs = modis_projection.crs() ## this is the crs from the modis.projection object
+target_crs_scale = modis_projection.nominalScale() ## this is the scale (confused on what this is need to figure this out)
 
+## this is a function to reproject it
 def reproject_feature(feature):
     return feature.setGeometry(feature.geometry().transform(target_crs, target_crs_scale))
 
+## this is running the function, so now "reprojected_roi" is the new object we care about
 reprojected_roi = roi.map(reproject_feature)
 
-# function to mask snow cover
+## function to mask snow cover, this is a step to help us understand how snow plays into the curves
+## especially important for desert systems, right now I set it to mask cells with more than 35% snow cover
 def apply_snow_mask(image, snow_image):
     snow_mask = ee.Algorithms.If(
         snow_image,
-        snow_image.lte(35),  # Snow cover is less than or equal to 30%
-        ee.Image(1)          # Default mask (all values included if no corresponding snow image)
+        snow_image.lte(35),  ## if the snow cover is less than or equal to 35%
+        ee.Image(1)          ## default mask (all values included if no corresponding snow image)
     )
     return image.updateMask(snow_mask)
 
-# clip MODIS NDVI dataset to the reprojected shapefile
+## clip MODIS NDVI dataset to the reprojected shapefile
 clipped_modis_ndvi = modis_ndvi.map(lambda image: image.clip(reprojected_roi))
 
-# clip VIIRS NDVI and EVI datasets
+## clip VIIRS NDVI and EVI datasets
 clipped_viirs_ndvi = viirs_ndvi.map(lambda image: image.clip(reprojected_roi))
 clipped_viirs_evi = viirs_evi.map(lambda image: image.clip(reprojected_roi))
 
-# apply the snow mask to MODIS NDVI
+## apply the snow mask to MODIS NDVI
 modis_ndvi_without_snow = clipped_modis_ndvi.map(
     lambda image: apply_snow_mask(image, modis_snow.filterDate(image.date(), image.date().advance(1, 'day')).first())
 )
 
 # apply snow mask to VIIRS NDVI and EVI
+# for now we are using the MODIS snow cover data
+# because I can't figure out how to get the VIIRS snow layer in GEE
 viirs_ndvi_without_snow = clipped_viirs_ndvi.map(
     lambda image: apply_snow_mask(image, modis_snow.filterDate(image.date(), image.date().advance(1, 'day')).first())
 )
@@ -81,7 +94,7 @@ viirs_evi_without_snow = clipped_viirs_evi.map(
     lambda image: apply_snow_mask(image, modis_snow.filterDate(image.date(), image.date().advance(1, 'day')).first())
 )
 
-# get the average values for the region of interest for each time step
+## get the average values for the region of interest for each time step
 def get_time_series(image_collection, region, scale, band):
     def calculate_mean(image):
         mean_value = image.reduceRegion(reducer=ee.Reducer.mean(), geometry=region, scale=scale)
@@ -104,26 +117,43 @@ def get_time_series(image_collection, region, scale, band):
 
     return dates, values
 
-# Convert dates to readable format
+# convert dates to readable format
 def convert_dates(dates):
     return [datetime.utcfromtimestamp(date / 1000) for date in dates]
 
-# Get time series data for MODIS and VIIRS NDVI, and VIIRS EVI
-modis_dates, modis_values = get_time_series(modis_ndvi_without_snow, reprojected_roi,
+# get time series data for MODIS and VIIRS NDVI and EVI
+modis_dates, modis_values = get_time_series(clipped_modis_ndvi, reprojected_roi,
                                             scale=int(target_crs_scale.getInfo()), band='NDVI')
 
-viirs_ndvi_dates, viirs_ndvi_values = get_time_series(viirs_ndvi_without_snow, reprojected_roi,
+viirs_ndvi_dates, viirs_ndvi_values = get_time_series(clipped_viirs_ndvi, reprojected_roi,
                                                       scale=int(target_crs_scale.getInfo()), band='NDVI')
 
-viirs_evi_dates, viirs_evi_values  = get_time_series(viirs_evi_without_snow, reprojected_roi,
+viirs_evi_dates, viirs_evi_values  = get_time_series(clipped_viirs_evi, reprojected_roi,
                                                      scale=int(target_crs_scale.getInfo()), band='EVI')
 
-# Convert dates to readable format
+# now with snow masked
+modis_dates2, modis_values2 = get_time_series(modis_ndvi_without_snow, reprojected_roi,
+                                            scale=int(target_crs_scale.getInfo()), band='NDVI')
+
+viirs_ndvi_dates2, viirs_ndvi_values2 = get_time_series(viirs_ndvi_without_snow, reprojected_roi,
+                                                      scale=int(target_crs_scale.getInfo()), band='NDVI')
+
+viirs_evi_dates2, viirs_evi_values2  = get_time_series(viirs_evi_without_snow, reprojected_roi,
+                                                     scale=int(target_crs_scale.getInfo()), band='EVI')
+
+
+# convert dates to readable format
 modis_dates = convert_dates(modis_dates)
 viirs_ndvi_dates = convert_dates(viirs_ndvi_dates)
 viirs_evi_dates = convert_dates(viirs_evi_dates)
 
-# Plot MODIS NDVI time series
+modis_dates2 = convert_dates(modis_dates2)
+viirs_ndvi_dates2 = convert_dates(viirs_ndvi_dates2)
+viirs_evi_dates2 = convert_dates(viirs_evi_dates2)
+
+## first we can plot all the raw data from each of the data sources
+
+# plot MODIS NDVI time series
 plt.figure(figsize=(10, 5))
 plt.plot(modis_dates, modis_values, label='MODIS NDVI', color='green')
 plt.title('MODIS NDVI Time Series (2018-2023)')
@@ -132,7 +162,7 @@ plt.ylabel('NDVI')
 plt.legend()
 plt.show()
 
-# Plot VIIRS NDVI time series
+# plot VIIRS NDVI time series
 plt.figure(figsize=(10, 5))
 plt.plot(viirs_ndvi_dates, viirs_ndvi_values, label='VIIRS NDVI', color='red')
 plt.title('VIIRS NDVI Time Series (2018-2023)')
@@ -141,7 +171,36 @@ plt.ylabel('NDVI')
 plt.legend()
 plt.show()
 
-# Plot VIIRS EVI time series
+# plot VIIRS EVI time series
+plt.figure(figsize=(10, 5))
+plt.plot(viirs_evi_dates, viirs_evi_values, label='VIIRS EVI', color='blue')
+plt.title('VIIRS EVI Time Series (2018-2023)')
+plt.xlabel('Date')
+plt.ylabel('EVI')
+plt.legend()
+plt.show()
+
+## now plot it with snow masked
+
+# plot MODIS NDVI time series (with snow masked)
+plt.figure(figsize=(10, 5))
+plt.plot(modis_dates, modis_values, label='MODIS NDVI', color='green')
+plt.title('MODIS NDVI Time Series (2018-2023)')
+plt.xlabel('Date')
+plt.ylabel('NDVI')
+plt.legend()
+plt.show()
+
+# plot VIIRS NDVI time series (with snow masked)
+plt.figure(figsize=(10, 5))
+plt.plot(viirs_ndvi_dates, viirs_ndvi_values, label='VIIRS NDVI', color='red')
+plt.title('VIIRS NDVI Time Series (2018-2023)')
+plt.xlabel('Date')
+plt.ylabel('NDVI')
+plt.legend()
+plt.show()
+
+# plot VIIRS EVI time series (with snow masked)
 plt.figure(figsize=(10, 5))
 plt.plot(viirs_evi_dates, viirs_evi_values, label='VIIRS EVI', color='blue')
 plt.title('VIIRS EVI Time Series (2018-2023)')
