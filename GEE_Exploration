@@ -94,7 +94,9 @@ viirs_evi_without_snow = clipped_viirs_evi.map(
     lambda image: apply_snow_mask(image, modis_snow.filterDate(image.date(), image.date().advance(1, 'day')).first())
 )
 
-## get the average values for the region of interest for each time step
+## now, this is a function so that we can get the actual data and plot it
+## this function will get the average values for the region of interest for each time step
+
 def get_time_series(image_collection, region, scale, band):
     def calculate_mean(image):
         mean_value = image.reduceRegion(reducer=ee.Reducer.mean(), geometry=region, scale=scale)
@@ -104,7 +106,7 @@ def get_time_series(image_collection, region, scale, band):
     time_series = image_collection.map(calculate_mean)
     time_series_list = time_series.getInfo()['features']
 
-    # Extract time and values, and filter out None values
+    ## extract time and values, and filter out None values
     dates = []
     values = []
     for feature in time_series_list:
@@ -117,11 +119,11 @@ def get_time_series(image_collection, region, scale, band):
 
     return dates, values
 
-# convert dates to readable format
+## convert dates to readable format
 def convert_dates(dates):
     return [datetime.utcfromtimestamp(date / 1000) for date in dates]
 
-# get time series data for MODIS and VIIRS NDVI and EVI
+## get time series data for MODIS and VIIRS NDVI and EVI
 modis_dates, modis_values = get_time_series(clipped_modis_ndvi, reprojected_roi,
                                             scale=int(target_crs_scale.getInfo()), band='NDVI')
 
@@ -131,7 +133,7 @@ viirs_ndvi_dates, viirs_ndvi_values = get_time_series(clipped_viirs_ndvi, reproj
 viirs_evi_dates, viirs_evi_values  = get_time_series(clipped_viirs_evi, reprojected_roi,
                                                      scale=int(target_crs_scale.getInfo()), band='EVI')
 
-# now with snow masked
+## now with snow masked
 modis_dates2, modis_values2 = get_time_series(modis_ndvi_without_snow, reprojected_roi,
                                             scale=int(target_crs_scale.getInfo()), band='NDVI')
 
@@ -142,18 +144,19 @@ viirs_evi_dates2, viirs_evi_values2  = get_time_series(viirs_evi_without_snow, r
                                                      scale=int(target_crs_scale.getInfo()), band='EVI')
 
 
-# convert dates to readable format
+## convert dates to readable format
 modis_dates = convert_dates(modis_dates)
 viirs_ndvi_dates = convert_dates(viirs_ndvi_dates)
 viirs_evi_dates = convert_dates(viirs_evi_dates)
 
+## might be able to 
 modis_dates2 = convert_dates(modis_dates2)
 viirs_ndvi_dates2 = convert_dates(viirs_ndvi_dates2)
 viirs_evi_dates2 = convert_dates(viirs_evi_dates2)
 
 ## first we can plot all the raw data from each of the data sources
 
-# plot MODIS NDVI time series
+## plot MODIS NDVI time series
 plt.figure(figsize=(10, 5))
 plt.plot(modis_dates, modis_values, label='MODIS NDVI', color='green')
 plt.title('MODIS NDVI Time Series (2018-2023)')
@@ -162,7 +165,7 @@ plt.ylabel('NDVI')
 plt.legend()
 plt.show()
 
-# plot VIIRS NDVI time series
+## plot VIIRS NDVI time series
 plt.figure(figsize=(10, 5))
 plt.plot(viirs_ndvi_dates, viirs_ndvi_values, label='VIIRS NDVI', color='red')
 plt.title('VIIRS NDVI Time Series (2018-2023)')
@@ -171,7 +174,7 @@ plt.ylabel('NDVI')
 plt.legend()
 plt.show()
 
-# plot VIIRS EVI time series
+## plot VIIRS EVI time series
 plt.figure(figsize=(10, 5))
 plt.plot(viirs_evi_dates, viirs_evi_values, label='VIIRS EVI', color='blue')
 plt.title('VIIRS EVI Time Series (2018-2023)')
@@ -182,28 +185,28 @@ plt.show()
 
 ## now plot it with snow masked
 
-# plot MODIS NDVI time series (with snow masked)
+## plot MODIS NDVI time series (with snow masked)
 plt.figure(figsize=(10, 5))
-plt.plot(modis_dates, modis_values, label='MODIS NDVI', color='green')
-plt.title('MODIS NDVI Time Series (2018-2023)')
+plt.plot(modis_dates2, modis_values2, label='MODIS NDVI', color='green')
+plt.title('MODIS NDVI Time Series with Snow Masked (2018-2023)')
 plt.xlabel('Date')
 plt.ylabel('NDVI')
 plt.legend()
 plt.show()
 
-# plot VIIRS NDVI time series (with snow masked)
+## plot VIIRS NDVI time series (with snow masked)
 plt.figure(figsize=(10, 5))
-plt.plot(viirs_ndvi_dates, viirs_ndvi_values, label='VIIRS NDVI', color='red')
-plt.title('VIIRS NDVI Time Series (2018-2023)')
+plt.plot(viirs_ndvi_dates2, viirs_ndvi_values2, label='VIIRS NDVI', color='red')
+plt.title('VIIRS NDVI Time Series with Snow Masked (2018-2023)')
 plt.xlabel('Date')
 plt.ylabel('NDVI')
 plt.legend()
 plt.show()
 
-# plot VIIRS EVI time series (with snow masked)
+## plot VIIRS EVI time series (with snow masked)
 plt.figure(figsize=(10, 5))
-plt.plot(viirs_evi_dates, viirs_evi_values, label='VIIRS EVI', color='blue')
-plt.title('VIIRS EVI Time Series (2018-2023)')
+plt.plot(viirs_evi_dates2, viirs_evi_values2, label='VIIRS EVI', color='blue')
+plt.title('VIIRS EVI Time Series with Snow Masked (2018-2023)')
 plt.xlabel('Date')
 plt.ylabel('EVI')
 plt.legend()
