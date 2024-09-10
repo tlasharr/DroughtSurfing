@@ -15,11 +15,14 @@ import ee
 import matplotlib.pyplot as plt
 from datetime import datetime
 
-# initialize the Earth Engine module
+## initialize the Earth Engine module
+## i have already authenticated GEE on this machine, you will have to do that
+## for each machine you run things on
 ee.Initialize()
 
 ## load the shapefile (this is saved as an asset in GEE)
 ## can change it out for a few different ones if we are interested in different areas
+
 roi = ee.FeatureCollection('projects/ee-tlasharr/assets/UT_Paunsaugunt')
 # roi = ee.FeatureCollection('projects/ee-tlasharr/assets/NV_Izzenhood')
 # roi = ee.FeatureCollection('projects/ee-tlasharr/assets/WY_Sublette')
