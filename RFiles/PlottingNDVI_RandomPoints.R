@@ -5,6 +5,8 @@ library(scales)
 setwd("H:/My Drive/DroughtSurfing")
 subfolders <- c("WY", "UT", "AZ")
 
+## I am going to add d a new commment
+
 ## keep values
 values.list <- list()
 
