@@ -186,6 +186,15 @@ calc_greenup_metrics <- function(spl, data){
   threshold = 0.1  # threshold for detectable changes (10% change of the yearly NDVI values)
   significant_segments <- segment_changes$segment_id[abs(segment_changes$y) > threshold]
 
+  if(length(significant_segments)==0){
+    
+    results_list <- NULL
+    
+    return(results_list)
+    
+    
+  }else{
+  
   ## get the points that are part of the significant segments
   significant_points <- segments[segments$segment_id %in% significant_segments,]
   significant_points <- merge(significant_points, segment_changes[,c("segment_id", "type")], by = "segment_id")
@@ -267,5 +276,7 @@ calc_greenup_metrics <- function(spl, data){
                        senesc_start=senesc_start, senesc_end=senesc_end)
   
   return(results_list)
+  
+  }
   
 }

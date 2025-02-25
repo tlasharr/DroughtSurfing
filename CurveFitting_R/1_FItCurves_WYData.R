@@ -113,8 +113,7 @@ for(j in 1:length(list.rast)){
     if(all(is.na(tmp$NDVI))){
       
       print(paste0("Skipped point ", i, " pixel values null"))
-    }
-    else{
+    } else{
       
       tmp$rescale <- scale_values(tmp$NDVI)
       
@@ -168,6 +167,12 @@ for(j in 1:length(list.rast)){
         
         ## get the greenup metrics
         greenup_metrics <- calc_greenup_metrics(spl, tmp)
+        
+        if(is.null(greenup_metrics)){
+          
+          print(paste0("No significant changes in spline for point ", i))
+          
+        }else{
         
         ## get the daily values and prevent predictions from going below 0
         predictions <- predict(spl, x = days)
@@ -254,6 +259,8 @@ for(j in 1:length(list.rast)){
            inflection_points_increasing, inflection_points_decreasing, spl, 
            max_greenup, greenup_start, greenup_end, greenup_change,
            max_sen, sen_start, sen_end, sen_change, yr, dlc_estimates)
+        
+        }
         
       }
       
