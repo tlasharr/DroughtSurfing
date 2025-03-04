@@ -204,9 +204,20 @@ calc_greenup_metrics <- function(spl, data){
   result$inc <- FALSE
   result$dec <- FALSE
   
-  result[result$x %in% significant_points[significant_points$type=="inc",]$x,]$inc <- TRUE
-  result[result$x %in% significant_points[significant_points$type=="dec",]$x,]$dec <- TRUE
+  if(all(significant_points$type=='inc')){
+    result$dec <- FALSE
+  }else{
+    result[result$x %in% significant_points[significant_points$type=="dec",]$x,]$dec <- TRUE
+  }
   
+  if(all(significant_points$type=='dec')){
+    result$inc <- FALSE
+    
+  }else{
+    result[result$x %in% significant_points[significant_points$type=="inc",]$x,]$inc <- TRUE
+    
+  }
+    
 
   ## get the dates and the julian date
   result$jday <- result$x
