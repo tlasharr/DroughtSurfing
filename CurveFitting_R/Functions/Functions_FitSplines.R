@@ -211,6 +211,7 @@ calc_greenup_metrics <- function(pixel_values){
   ## identify significant segments
   threshold = 0.05  # threshold for detectable changes (10% change of the yearly NDVI values)
   significant_segments <- segment_changes$segment_id[abs(segment_changes$y) > threshold]
+
   
   ## get the points that are part of the significant segments
   significant_points <- segments[segments$segment_id %in% significant_segments,]
@@ -221,23 +222,12 @@ calc_greenup_metrics <- function(pixel_values){
   result$inc <- FALSE
   result$dec <- FALSE
   
-  if(nrow(significant_points[significant_points$type=="inc",])==0){
-    
-    result$inc <- FALSE
-    
-  }else{
-    result[result$x %in% significant_points[significant_points$type=="inc",]$x,]$inc <- TRUE
-  }
   
-  if(nrow(significant_points[significant_points$type=="dec",])==0){
-    
-    result$dec <- FALSE
-    
-    
   }else{
     result[result$x %in% significant_points[significant_points$type=="dec",]$x,]$dec <- TRUE
   }
   
+
   ## get the dates and the julian date
   result$jday <- result$x
   
@@ -341,6 +331,8 @@ calc_greenup_metrics <- function(pixel_values){
   }
   
   return(out)
+  
+  }
   
 }
 
