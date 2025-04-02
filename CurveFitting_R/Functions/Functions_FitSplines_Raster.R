@@ -178,6 +178,7 @@ fit_spline_raster <- function(pixel_ts) {
   return(predicted$y)  # Flatten the output to fit a vector
 }
 
+
 ## calculate green up periods
 calc_greenup_metrics <- function(pixel_values){
   
@@ -326,9 +327,8 @@ calc_greenup_metrics <- function(pixel_values){
       
       tmpvals <- unlist(results_list[metric_name])
       tmpvals <- sprintf("%03d", tmpvals)
-      tmpvals <- paste0(tmpvals, collapse = "")
+      tmpvals <- as.numeric(paste0(tmpvals, collapse = ""))
       
-      values(metrics_rast)[i, ][[which(names(metrics_rast) == metric_name)]] <- as.numeric(tmpvals)
       
     }else{
       
@@ -343,6 +343,8 @@ calc_greenup_metrics <- function(pixel_values){
   return(out)
   
 }
+
+
 
 ## function to unscale the NDVI data
 unscale_function <- function(x) {
