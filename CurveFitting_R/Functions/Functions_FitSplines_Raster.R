@@ -99,7 +99,7 @@ process_segments_for_logistic_inflection <- function(data, condition_column) {
       } else {
       ## then check if the change between consecutive rows meets the threshold
         ndvi_change <- diff(chunk$y)
-        return(any(abs(ndvi_change) >= 0.05))
+        return(any(abs(ndvi_change) >= 0.025))
       }
     }
     return(FALSE)
