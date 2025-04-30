@@ -48,15 +48,31 @@ for(j in 1:length(list.rast)){
   unscaled_pred <- (spline_out * (max_vals - min_vals)) + min_vals
   
   ## calculate green up metrics
-  greenup_metrics_list <- app(unscaled_pred, calc_greenup_metrics)
+  # greenup_metrics_list <- app(unscaled_pred, calc_greenup_metrics)
   
-  ## started at 12:31
+  offset_memmory = 10
+  
+  greenup_metrics_list <- app(unscaled_pred, function(pixel_values) {
+    calc_greenup_metrics(pixel_values, ndvi_threshold = 0.05, day_threshold = 14)
+  })
   
   ## save the names of the metrics as the layer names
-  names(greenup_metrics_list)  <- c("inflection_points_increasing",
-                                    "inflection_points_decreasing", 
-                                    "greenup_start", "greenup_end",
-                                    "senesc_start", "senesc_end")
+  names(greenup_metrics_list)  <- c("greenup_peak_1", "greenup_peak_2",
+                                    "greenup_peak_3", "greenup_peak_4",
+                                    "senescence_peak_1", "senescence_peak_2",
+                                    "senescence_peak_3", "senescence_peak_4",
+                                    "greenup_start_1", "greenup_start_2",
+                                    "greenup_start_3", "greenup_start_4",
+                                    "greenup_end_1", "greenup_end_2",
+                                    "greenup_end_3", "greenup_end_4",
+                                    "senesc_start_1", "senesc_start_2",
+                                    "senesc_start_3", "senesc_start_4",
+                                    "senesc_end_1", "senesc_end_2",
+                                    "senesc_end_3", "senesc_end_4",
+                                    "greenup_change_1", "greenup_change_2",
+                                    "greenup_change_3", "greenup_change_4",
+                                    "senesc_change_1", "senesc_change_2",
+                                    "senesc_change_3", "senesc_change_4")
   
   greenup_metrics_list
   
