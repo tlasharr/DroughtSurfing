@@ -6,7 +6,7 @@ library(zoo)
 library(lubridate)
 library(scales)
 
-folder_of_interest <- "Sublette"
+folder_of_interest <- "Utah"
 
 ####### Source functions
 
@@ -37,6 +37,19 @@ for(j in 1:length(list.rast)){
   #### scale the raster
   scaled_r <- app(ndvi.rast, scale_values)
   
+  #### fit the dlc to the raster
+  modisdata2 <- app(ndvi.rast, fun = function(x) {
+    if (sum(!is.na(x)) <= 4) return(rep(NA, length(x)))
+    else return(x)
+  })
+  
+  ## get julian dates from the raster
+  jul2 <- yday(as.Date(substr(names(modisdata2), 1, 10), "%Y_%m_%d"))
+
+  ## fit the DLC and calculate IRG
+  dlcparams <- app(modisdata2, fun = fundlc)  
+  
+  
   #### fit a spline and predict out the values to 365 days a year
   spline_out <- app(scaled_r, fit_spline_raster)
   
@@ -48,10 +61,6 @@ for(j in 1:length(list.rast)){
   unscaled_pred <- (spline_out * (max_vals - min_vals)) + min_vals
   
   ## calculate green up metrics
-  # greenup_metrics_list <- app(unscaled_pred, calc_greenup_metrics)
-  
-  offset_memmory = 10
-  
   greenup_metrics_list <- app(unscaled_pred, function(pixel_values) {
     calc_greenup_metrics(pixel_values, ndvi_threshold = 0.05, day_threshold = 14)
   })
@@ -72,8 +81,10 @@ for(j in 1:length(list.rast)){
                                     "greenup_change_1", "greenup_change_2",
                                     "greenup_change_3", "greenup_change_4",
                                     "senesc_change_1", "senesc_change_2",
-                                    "senesc_change_3", "senesc_change_4")
-  
+                                    "senesc_change_3", "senesc_change_4",
+                                    "xmidS", "scalS", "xmidA", "scalA",
+                                    "xmidS_SE", "scalS_SE",
+                                    "xmidA_SE", "scalA_SE")
   greenup_metrics_list
   
   yr <- substr(list.rast[[j]], nchar(list.rast[[j]])-7,  nchar(list.rast[[j]])-4)
