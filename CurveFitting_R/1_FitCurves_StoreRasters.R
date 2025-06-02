@@ -6,7 +6,7 @@ library(zoo)
 library(lubridate)
 library(scales)
 
-folder_of_interest <- "Utah"
+folder_of_interest <- "Wyoming"
 
 ####### Source functions
 
@@ -17,7 +17,6 @@ source("C:/Users/tlasharr/Documents/GitHub/DroughtSurfing/CurveFitting_R/Functio
 
 list.rast <- list.files(paste0("H:/My Drive/NDVI_Merged/", folder_of_interest))
 
-
 NDVI_splines <- lapply(seq_along(list.rast), function(j) {
   
   ## get the raster we care about
@@ -27,38 +26,59 @@ NDVI_splines <- lapply(seq_along(list.rast), function(j) {
   dates <- names(ndvi.rast)
   ydates <- yday(as.Date(substr(dates, 1, 10), "%Y_%m_%d"))
   
-  #### scale the raster
-  scaled_r <- app(ndvi.rast, scale_values)
-  
   #### filter for valid pixels
+  Sys.time()
   modisdata2 <- app(ndvi.rast, function(x) {
     if (sum(!is.na(x)) <= 4) return(rep(NA, length(x)))
     else return(x)
-  })
+  },
+  cores = parallel::detectCores() - 4)
   
   ## get julian dates
-  jul2 <- yday(as.Date(substr(names(modisdata2), 1, 10), "%Y_%m_%d"))
+  jul2 <- yday(as.Date(substr(names(ndvi.rast), 1, 10), "%Y_%m_%d"))
+  
+  ## scale the raster
+  Sys.time()
+  scaled_r <- app(modisdata2, scale_values,
+                  cores = parallel::detectCores() - 4)
   
   ## fit the DLC
-  dlcparams <- app(modisdata2, fun = fundlc)  
-  
+  Sys.time()
+  dlcparams <- app(scaled_r, fun = fundlc,
+                   cores = parallel::detectCores() - 4)  
+
   #### fit spline and predict 365 days
-  spline_out <- app(scaled_r, fit_spline_raster)
-  
+  Sys.time()
+  spline_out <- app(scaled_r, fit_spline_raster,
+                    cores = parallel::detectCores() - 4)
+
   #### min/max values
-  min_vals <- app(ndvi.rast, fun = min, na.rm = TRUE)
-  max_vals <- app(ndvi.rast, fun = max, na.rm = TRUE)
+  min_vals <- app(ndvi.rast, fun = min, na.rm = TRUE,
+                  cores = parallel::detectCores() - 4)
+  max_vals <- app(ndvi.rast, fun = max, na.rm = TRUE,
+                  cores = parallel::detectCores() - 4)
   
   #### unscale predictions
+  Sys.time()
   unscaled_pred <- (spline_out * (max_vals - min_vals)) + min_vals
   
   ## calculate green-up metrics
-  greenup_metrics_list <- app(unscaled_pred, function(pixel_values) {
-    calc_greenup_metrics(pixel_values, ndvi_threshold = 0.05, day_threshold = 14)
-  })
+  # Sys.time()
+  # greenup_metrics_list <- app(unscaled_pred, function(pixel_values) {
+  #   calc_greenup_metrics(pixel_values, ndvi_threshold = 0.05, day_threshold = 14)
+  # }, cores = parallel::detectCores() - 4)
+  # 
+  # Sys.time()
+  
+  greenup_metrics_list <- app(unscaled_pred,
+                              fun = calc_greenup_metrics,
+                              cores = parallel::detectCores() - 4)
+  Sys.time()
+  
+  greenup_metrics_all <- c(greenup_metrics_list, dlcparams)
   
   ## assign names to the output
-  names(greenup_metrics_list)  <- c("greenup_peak_1", "greenup_peak_2",
+  names(greenup_metrics_all)  <- c("greenup_peak_1", "greenup_peak_2",
                                     "greenup_peak_3", "greenup_peak_4",
                                     "senescence_peak_1", "senescence_peak_2",
                                     "senescence_peak_3", "senescence_peak_4",
@@ -76,7 +96,10 @@ NDVI_splines <- lapply(seq_along(list.rast), function(j) {
                                     "senesc_change_3", "senesc_change_4",
                                     "xmidS", "scalS", "xmidA", "scalA",
                                     "xmidS_SE", "scalS_SE",
-                                    "xmidA_SE", "scalA_SE")
+                                    "xmidA_SE", "scalA_SE",
+                                    "maxNDVI", "maxNDVIdate",
+                                    "maxIRG", "maxIRGdate",
+                                    "sumIRG", "springStart", "springEnd")
   
   ## save output
   yr <- substr(list.rast[[j]], nchar(list.rast[[j]])-7,  nchar(list.rast[[j]])-4)

@@ -29,8 +29,8 @@ fundlc <- function(x) {
   springdata <- 1/(1+exp((dlcparams[1]-dailytime)/dlcparams[2]))
   
   ## get the IRG values
-  temp <- c((diff(springdata)/diff(dailytime)),NA)
-  temp[temp < 0] <- 0
+  irg <- c((diff(springdata)/diff(dailytime)),NA)
+  irg[irg < 0] <- 0
   
   ## get cumsum of NDVI
   sumIRG <- cumsum(ifelse(is.na(irg), 0, irg))
