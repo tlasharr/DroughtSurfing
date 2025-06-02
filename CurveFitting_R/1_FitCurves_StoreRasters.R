@@ -6,7 +6,11 @@ library(zoo)
 library(lubridate)
 library(scales)
 
+<<<<<<< Updated upstream
 folder_of_interest <- "Wyoming"
+=======
+folder_of_interest <- "Yellowstone"
+>>>>>>> Stashed changes
 
 ####### Source functions
 
