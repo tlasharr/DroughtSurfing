@@ -6,25 +6,27 @@ library(zoo)
 library(lubridate)
 library(scales)
 
-<<<<<<< Updated upstream
+# <<<<<<< Updated upstream
 folder_of_interest <- "Wyoming"
-=======
-folder_of_interest <- "Yellowstone"
->>>>>>> Stashed changes
+# =======
+# folder_of_interest <- "Yellowstone"
+# >>>>>>> Stashed changes
 
 ####### Source functions
 
-source("C:/Users/tlasharr/Documents/GitHub/DroughtSurfing/CurveFitting_R/Functions/Functions_FitSplines_Raster.R")
-source("C:/Users/tlasharr/Documents/GitHub/DroughtSurfing/CurveFitting_R/Functions/Functions_FitDLC.R")
+source("C:/Users/tlash/Documents/GitHub/DroughtSurfing/CurveFitting_R/Functions/Functions_FitSplines_Raster.R")
+source("C:/Users/tlash/Documents/GitHub/DroughtSurfing/CurveFitting_R/Functions/Functions_FitDLC.R")
 
 ########## read in the data 
 
-list.rast <- list.files(paste0("H:/My Drive/NDVI_Merged/", folder_of_interest))
+list.rast <- list.files(paste0("G:/My Drive/NDVI_Merged/", folder_of_interest))
+list.rast <- list.rast[16:23]
+
 
 NDVI_splines <- lapply(seq_along(list.rast), function(j) {
   
   ## get the raster we care about
-  ndvi.rast <- rast(paste0("H:/My Drive/NDVI_Merged/", folder_of_interest, "/", list.rast[[j]]))
+  ndvi.rast <- rast(paste0("G:/My Drive/NDVI_Merged/", folder_of_interest, "/", list.rast[[j]]))
   
   #### get the dates
   dates <- names(ndvi.rast)
@@ -56,6 +58,9 @@ NDVI_splines <- lapply(seq_along(list.rast), function(j) {
   spline_out <- app(scaled_r, fit_spline_raster,
                     cores = parallel::detectCores() - 4)
 
+  rss_spline <- app(scaled_r, rss_spline_func,
+                    cores = parallel::detectCores() - 4)
+  
   #### min/max values
   min_vals <- app(ndvi.rast, fun = min, na.rm = TRUE,
                   cores = parallel::detectCores() - 4)
@@ -79,7 +84,7 @@ NDVI_splines <- lapply(seq_along(list.rast), function(j) {
                               cores = parallel::detectCores() - 4)
   Sys.time()
   
-  greenup_metrics_all <- c(greenup_metrics_list, dlcparams)
+  greenup_metrics_all <- c(greenup_metrics_list, rss_spline, dlcparams)
   
   ## assign names to the output
   names(greenup_metrics_all)  <- c("greenup_peak_1", "greenup_peak_2",
@@ -98,16 +103,17 @@ NDVI_splines <- lapply(seq_along(list.rast), function(j) {
                                     "greenup_change_3", "greenup_change_4",
                                     "senesc_change_1", "senesc_change_2",
                                     "senesc_change_3", "senesc_change_4",
+                                    "rss_spline",
                                     "xmidS", "scalS", "xmidA", "scalA",
                                     "xmidS_SE", "scalS_SE",
                                     "xmidA_SE", "scalA_SE",
                                     "maxNDVI", "maxNDVIdate",
                                     "maxIRG", "maxIRGdate",
-                                    "sumIRG", "springStart", "springEnd")
+                                    "sumIRG", "springStart", "springEnd", "rss_dlc")
   
   ## save output
   yr <- substr(list.rast[[j]], nchar(list.rast[[j]])-7,  nchar(list.rast[[j]])-4)
-  saveRDS(greenup_metrics_list, paste0("G:/Shared drives/wyo-coop-lasharr/PostDoc/CurveFitting/", folder_of_interest, "_SplineMetrics_Raster_", yr, ".rds"))
+  saveRDS(greenup_metrics_list, paste0("G:/Shared drives/wyo-coop-lasharr/PostDoc/CurveFitting/Wyoming_Updated/", folder_of_interest, "_SplineMetrics_Raster_", yr, ".rds"))
   
   print(paste0("FINISHED WITH RASTER ", list.rast[[j]]))
   

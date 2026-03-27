@@ -123,7 +123,7 @@ fit_weighted_spline <- function(x, y, spar = 0.5) {
     return(NULL)
   }
   
-  ## define weights based on changes in y, adjusting to avoid division by zero
+  # define weights based on changes in y, adjusting to avoid division by zero
   weights <- 1 / (abs(diff(c(0, y))) + 0.001)  # Adding a small number to avoid division by zero
   
   ## try to fit the spline with error handling
@@ -193,8 +193,59 @@ fit_spline_raster <- function(pixel_ts) {
   ## ensure no negative predictions, and adjust predictions if needed
   predicted$y <- pmin(pmax(predicted$y, 0), 1)  # Capping between 0 and 1
   
-  return(predicted$y)  # Flatten the output to fit a vector
+  return(list(predicted$y))  # Flatten the output to fit a vector
 }
+
+## function to get rss from spline model
+rss_spline_func <- function(pixel_ts) {
+
+  if (all(is.na(pixel_ts))) {
+    ## return an NA for rss_spline
+    return(NA)  
+  }
+  
+  ## add this function because of parallel with terra
+  fit_weighted_spline <- function(x, y, spar = 0.5) {
+    
+    ## check for missing or infinite values in the input
+    if (any(is.na(x)) || any(is.na(y)) || any(is.infinite(x)) || any(is.infinite(y))) {
+      warning("Missing or infinite values detected; skipping spline fitting.")
+      return(NULL)
+    }
+    
+    ## define weights based on changes in y, adjusting to avoid division by zero
+    weights <- 1 / (abs(diff(c(0, y))) + 0.001)  # Adding a small number to avoid division by zero
+    
+    ## try to fit the spline with error handling
+    spline_model <- try(smooth.spline(x, y, spar = spar, w = weights), silent = TRUE)
+    
+    ## check if an error occurred during the spline fitting
+    if (inherits(spline_model, "try-error")) {
+      warning("Error in smooth.spline fitting; returning NULL.")
+      return(NULL)
+    }
+    
+    ## ensure predictions don't go below 0 (if applicable)
+    spline_model$y <- pmin(pmax(spline_model$y, 0), 1)  # Capping between 0 and 1
+    
+    return(spline_model)
+  }
+
+  ## assuming the time points (x-values) are 1:length(pixel_ts)
+  time_points <- 1:length(pixel_ts)
+  
+  ## fit the spline
+  spline_model <- fit_weighted_spline(time_points, pixel_ts, spar = 0.4)
+  
+  if (is.null(spline_model)) {
+    return(NA)  # Adjust based on what you decide to extract
+  }
+  rss_spline <- try(sum(resid(spline_model)^2))
+
+  return(rss_spline)  # Flatten the output to fit a vector
+}
+
+
 
 
 ## calculate green up periods
@@ -267,7 +318,6 @@ calc_greenup_metrics <- function(pixel_values,
   
   if (!exists("pad_or_trim")) stop("pad_or_trim not found")
   if (!exists("process_segments_for_logistic_inflection")) stop("process_segments_for_logistic_inflection not found")
-  
   
   if (length(pixel_values) <= 1 || all(is.na(pixel_values))) {
     return(rep(NA, 32))  # Return NA if insufficient data

@@ -12,12 +12,13 @@ fundlc <- function(x) {
                  start=list(xmidS=130,scalS=10,xmidA=230,scalA=17),lower=lowers, upper=uppers,
                  control=list(warnOnly = TRUE), algorithm="port"), silent=TRUE)
   
-  if (inherits(res, "try-error")) return(rep(NA, 15))
-  if (!res$convInfo$isConv) return(rep(NA, 15))
+  if (inherits(res, "try-error")) return(rep(NA, 16))
+  if (!res$convInfo$isConv) return(rep(NA, 16))
   
   s <- try(summary(res), silent = TRUE)
+  rss_dlc <- try(sum(resid(res)^2))
   
-  if (inherits(s, "try-error")) return(rep(NA, 15))
+  if (inherits(s, "try-error")) return(rep(NA, 16))
   
   dlcparams <- c(summary(res)$coefficients[,1],summary(res)$coefficients[,2])
   dailytime <- 1:365
@@ -55,7 +56,8 @@ fundlc <- function(x) {
                 maxIRGdate = maxIRGdate,
                 sumIRG = sumIRG[365],
                 springStart = springStart,
-                springEnd = springEnd)
+                springEnd = springEnd,
+                rss_dlc = rss_dlc)
   
   
   return.list <- c(dlcparams, calcvals)
