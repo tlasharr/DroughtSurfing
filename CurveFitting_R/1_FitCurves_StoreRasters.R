@@ -20,7 +20,7 @@ source("C:/Users/tlash/Documents/GitHub/DroughtSurfing/CurveFitting_R/Functions/
 ########## read in the data 
 
 list.rast <- list.files(paste0("G:/My Drive/NDVI_Merged/", folder_of_interest))
-list.rast <- list.rast[16:23]
+list.rast <- list.rast[17:23]
 
 
 NDVI_splines <- lapply(seq_along(list.rast), function(j) {
@@ -38,7 +38,7 @@ NDVI_splines <- lapply(seq_along(list.rast), function(j) {
     if (sum(!is.na(x)) <= 4) return(rep(NA, length(x)))
     else return(x)
   },
-  cores = parallel::detectCores() - 4)
+  cores = parallel::detectCores() - 2)
   
   ## get julian dates
   jul2 <- yday(as.Date(substr(names(ndvi.rast), 1, 10), "%Y_%m_%d"))
@@ -46,30 +46,33 @@ NDVI_splines <- lapply(seq_along(list.rast), function(j) {
   ## scale the raster
   Sys.time()
   scaled_r <- app(modisdata2, scale_values,
-                  cores = parallel::detectCores() - 4)
-  
+                  cores = parallel::detectCores() - 2)
+  message("Finished Scaling")
   ## fit the DLC
   Sys.time()
   dlcparams <- app(scaled_r, fun = fundlc,
-                   cores = parallel::detectCores() - 4)  
-
+                   cores = parallel::detectCores() - 2)  
+  message("Finished fitting DLC")
   #### fit spline and predict 365 days
   Sys.time()
   spline_out <- app(scaled_r, fit_spline_raster,
-                    cores = parallel::detectCores() - 4)
-
+                    cores = parallel::detectCores() - 2)
+  message("Finished fitting spline")
+  
   rss_spline <- app(scaled_r, rss_spline_func,
-                    cores = parallel::detectCores() - 4)
+                    cores = parallel::detectCores() - 2)
+  message("Finished extracting RSS from spline")
   
   #### min/max values
   min_vals <- app(ndvi.rast, fun = min, na.rm = TRUE,
-                  cores = parallel::detectCores() - 4)
+                  cores = parallel::detectCores() - 2)
   max_vals <- app(ndvi.rast, fun = max, na.rm = TRUE,
-                  cores = parallel::detectCores() - 4)
+                  cores = parallel::detectCores() - 2)
   
   #### unscale predictions
   Sys.time()
   unscaled_pred <- (spline_out * (max_vals - min_vals)) + min_vals
+  message('Finished Unscaling Predictions')
   
   ## calculate green-up metrics
   # Sys.time()
@@ -81,9 +84,9 @@ NDVI_splines <- lapply(seq_along(list.rast), function(j) {
   
   greenup_metrics_list <- app(unscaled_pred,
                               fun = calc_greenup_metrics,
-                              cores = parallel::detectCores() - 4)
+                              cores = parallel::detectCores() - 2)
   Sys.time()
-  
+  message("Finished Calculaing green-up metrics from spline")
   greenup_metrics_all <- c(greenup_metrics_list, rss_spline, dlcparams)
   
   ## assign names to the output
@@ -115,7 +118,7 @@ NDVI_splines <- lapply(seq_along(list.rast), function(j) {
   yr <- substr(list.rast[[j]], nchar(list.rast[[j]])-7,  nchar(list.rast[[j]])-4)
   saveRDS(greenup_metrics_list, paste0("G:/Shared drives/wyo-coop-lasharr/PostDoc/CurveFitting/Wyoming_Updated/", folder_of_interest, "_SplineMetrics_Raster_", yr, ".rds"))
   
-  print(paste0("FINISHED WITH RASTER ", list.rast[[j]]))
+  message(paste0("FINISHED WITH RASTER ", list.rast[[j]]))
   
   return(greenup_metrics_list)
 })

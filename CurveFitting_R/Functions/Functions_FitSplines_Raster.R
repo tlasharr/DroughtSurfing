@@ -181,7 +181,7 @@ fit_spline_raster <- function(pixel_ts) {
   time_points <- 1:length(pixel_ts)
   
   ## fit the spline
-  spline_model <- fit_weighted_spline(time_points, pixel_ts, spar = 0.4)
+  spline_model <- fit_weighted_spline(time_points, as.numeric(pixel_ts), spar = 0.4)
   
   if (is.null(spline_model)) {
     return(rep(NA, 365))  # Adjust based on what you decide to extract
@@ -193,7 +193,7 @@ fit_spline_raster <- function(pixel_ts) {
   ## ensure no negative predictions, and adjust predictions if needed
   predicted$y <- pmin(pmax(predicted$y, 0), 1)  # Capping between 0 and 1
   
-  return(list(predicted$y))  # Flatten the output to fit a vector
+  return(predicted$y)  # Flatten the output to fit a vector
 }
 
 ## function to get rss from spline model
