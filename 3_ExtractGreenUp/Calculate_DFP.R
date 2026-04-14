@@ -66,8 +66,8 @@ population_meta <- tribble(
   "UT_Beaver",                "Utah",
   "UT_WasatchEast",           "Utah",
   "UT_SanJuan",               "Utah",
-  "UT_PineValley",            "Utah",
-  "WY_RedDesert",             "Wyoming"
+  "UT_PineValley",            "Utah"
+  # "WY_RedDesert",             "Wyoming"
 )
 
 ## load all populations into a named list
@@ -81,11 +81,7 @@ populations <- setNames(
 
 ## for a single population, extracts green-up metrics at each gps location,
 ## joins migration timing, and computes surfing metrics
-extract_greenup_for_deer <- function(deer_sf,
-                                     mig_df,
-                                     rast_list,
-                                     bands,
-                                     rss_threshold = 2) {
+extract_greenup_for_deer <- function(deer_sf, mig_df, rast_list, bands, rss_threshold = 2) {
   
   ## add year, julian day, and migration season to the gps data
   deer_sf <- deer_sf %>%
@@ -154,16 +150,15 @@ extract_greenup_for_deer <- function(deer_sf,
 
 ########## run extraction across all populations
 
-## set up parallel processing -- adjust workers to your machine
-plan(multisession, workers = parallel::detectCores() - 2)
-
 ## pull the raster stack for each population based on its region
 raster_lookup <- list(
-  Utah    = utah_rasters,
-  Wyoming = wy_rasters
+  Utah    = utah_rasters
+  # Wyoming = wy_rasters
 )
 
-all_deer_greenup <- future_map_dfr(
+## iterate sequentially over herds -- parallelism already happens inside app() during curve fitting,
+## and the rasters are too large to ship across parallel workers here
+all_deer_greenup <- map_dfr(
   population_meta$herd_id,
   function(herd_id) {
     
@@ -180,12 +175,8 @@ all_deer_greenup <- future_map_dfr(
       rss_threshold = rss_threshold
     ) %>%
       mutate(herd = herd_id)
-  },
-  .options = furrr_options(seed = TRUE)
+  }
 )
-
-## return to sequential processing
-plan(sequential)
 
 
 ########## quality checks and summaries
