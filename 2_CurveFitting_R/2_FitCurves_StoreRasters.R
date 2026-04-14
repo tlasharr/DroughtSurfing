@@ -116,7 +116,8 @@ NDVI_splines <- lapply(seq_along(list.rast), function(j) {
   
   ## save output
   yr <- substr(list.rast[[j]], nchar(list.rast[[j]])-7,  nchar(list.rast[[j]])-4)
-  saveRDS(greenup_metrics_list, paste0("G:/Shared drives/wyo-coop-lasharr/PostDoc/CurveFitting/Wyoming_Updated/", folder_of_interest, "_SplineMetrics_Raster_", yr, ".rds"))
+  saveRDS(greenup_metrics_all, paste0("G:/Shared drives/wyo-coop-lasharr/PostDoc/CurveFitting/Wyoming_Updated/", folder_of_interest, "_SplineMetrics_Raster_", yr, ".rds"))
+  writeRaster(greenup_metrics_all, paste0("G:/Shared drives/wyo-coop-lasharr/PostDoc/CurveFitting/Wyoming_Updated/", folder_of_interest, "_SplineMetrics_Raster_", yr, ".tif"))
   
   message(paste0("FINISHED WITH RASTER ", list.rast[[j]]))
   
