@@ -2,31 +2,34 @@ library(terra)
 library(raster)
 library(sf)
 
-folder_of_interest <- "Wyoming"
 
 ## list of NDVI rasters
-ndvi.list <- list.files(paste0("G:/My Drive/NDVI_Exports/", folder_of_interest))
+ndvi.list <- list.files(paste0("G:/My Drive/NDVI_Exports/"))
 
 ## get all the years
-uni.years <- unique(sapply(ndvi.list, function(x) { unlist(strsplit(x, "_")) [2]}))
-uni.years <- uni.years[length(uni.years)]
-uni.years
+uni.years <- unique(sapply(ndvi.list, function(x) unlist(strsplit(x, "_"))[4]))
+uni.years 
 
 
 ## combine them together
-setwd(paste0("G:/My Drive/NDVI_Exports/", folder_of_interest))
+setwd(paste0("G:/My Drive/NDVI_Exports/"))
 
+ser <- c(2,3,4,5,6,7)
 
-for(i in 1:length(uni.years)){
-  
+for(i in ser){ #1:length(uni.years)
+  #i=1
   tmp.year <- grep(uni.years[[i]], ndvi.list, value = TRUE)
 
   rasters <- lapply(tmp.year, rast)
   
   s <- sprc(rasters)
   mosaic_raster <- merge(s)
-  plot(mosaic_raster[[10]], main = tmp.year[[1]])
   
-  writeRaster(mosaic_raster, paste0('G:/My Drive/NDVI_Merged/', folder_of_interest, "/", folder_of_interest, "_", uni.years[[i]], ".tif"), overwrite = TRUE)
+  #test only
+  #plot(mosaic_raster[[10]], main = tmp.year[[1]])
+  
+  varnames(mosaic_raster) <- paste0("FULL_WESTERN_US_", uni.years[[i]])
+  
+    writeRaster(mosaic_raster, paste0("G:/Shared drives/wyo-coop-WestWideMuleDeerProject/GIS/NDVI/FULL_WESTERN_US/FULL_WESTERN_US_", uni.years[[i]], ".tif"), overwrite = TRUE)
   
 }
