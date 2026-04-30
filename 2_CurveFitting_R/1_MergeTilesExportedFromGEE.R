@@ -22,7 +22,7 @@ outloc <- "C:/Users/lwilde2/Desktop/ndvi_merged"
 setwd(souceloc)
 
 
-for(i in 2:length(uni.years)){
+for(i in 1:length(uni.years)){
   #i=1
   tmp.year <- grep(uni.years[[i]], ndvi.list, value = TRUE)
 
