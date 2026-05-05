@@ -9,7 +9,7 @@ library(doParallel)
 ndvi.list <- list.files(paste0("C:/Users/lwilde2/Desktop/tmp NDVI"))
 
 ## get all the years
-uni.years <- unique(sapply(ndvi.list, function(x) unlist(strsplit(x, "_"))[4]))
+uni.years <- unique(sapply(ndvi.list, function(x) unlist(strsplit(x, "_"))[4]))[20:23]
 uni.years 
 
 souceloc <- "C:/Users/lwilde2/Desktop/tmp NDVI"

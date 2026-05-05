@@ -7,26 +7,26 @@ library(lubridate)
 library(scales)
 
 # <<<<<<< Updated upstream
-folder_of_interest <- "Wyoming"
+folder_of_interest <- "tmp NDVI"
 # =======
 # folder_of_interest <- "Yellowstone"
 # >>>>>>> Stashed changes
 
 ####### Source functions
 
-source("C:/Users/tlash/Documents/GitHub/DroughtSurfing/CurveFitting_R/Functions/Functions_FitSplines_Raster.R")
-source("C:/Users/tlash/Documents/GitHub/DroughtSurfing/CurveFitting_R/Functions/Functions_FitDLC.R")
+source("C:/Users/lwilde2/Documents/Github/DroughtSurfing/2_CurveFitting_R/Functions/Functions_FitSplines_Raster.R")
+source("C:/Users/lwilde2/Documents/Github/DroughtSurfing/2_CurveFitting_R/Functions/Functions_FitDLC.R")
 
 ########## read in the data 
 
-list.rast <- list.files(paste0("G:/My Drive/NDVI_Merged/", folder_of_interest))
-list.rast <- list.rast[17:23]
+list.rast <- list.files(paste0("C:/Users/lwilde2/Desktop/", folder_of_interest))
+list.rast <- list.rast[1:9]
 
 
 NDVI_splines <- lapply(seq_along(list.rast), function(j) {
-  
+  t1 <- Sys.time()
   ## get the raster we care about
-  ndvi.rast <- rast(paste0("G:/My Drive/NDVI_Merged/", folder_of_interest, "/", list.rast[[j]]))
+  ndvi.rast <- rast(paste0("C:/Users/lwilde2/Desktop/", folder_of_interest, "/", list.rast[[j]]))
   
   #### get the dates
   dates <- names(ndvi.rast)
@@ -44,17 +44,17 @@ NDVI_splines <- lapply(seq_along(list.rast), function(j) {
   jul2 <- yday(as.Date(substr(names(ndvi.rast), 1, 10), "%Y_%m_%d"))
   
   ## scale the raster
-  Sys.time()
+  #Sys.time()
   scaled_r <- app(modisdata2, scale_values,
                   cores = parallel::detectCores() - 2)
   message("Finished Scaling")
   ## fit the DLC
-  Sys.time()
+  #Sys.time()
   dlcparams <- app(scaled_r, fun = fundlc,
                    cores = parallel::detectCores() - 2)  
   message("Finished fitting DLC")
   #### fit spline and predict 365 days
-  Sys.time()
+  #Sys.time()
   spline_out <- app(scaled_r, fit_spline_raster,
                     cores = parallel::detectCores() - 2)
   message("Finished fitting spline")
@@ -70,7 +70,7 @@ NDVI_splines <- lapply(seq_along(list.rast), function(j) {
                   cores = parallel::detectCores() - 2)
   
   #### unscale predictions
-  Sys.time()
+  #Sys.time()
   unscaled_pred <- (spline_out * (max_vals - min_vals)) + min_vals
   message('Finished Unscaling Predictions')
   
@@ -85,7 +85,7 @@ NDVI_splines <- lapply(seq_along(list.rast), function(j) {
   greenup_metrics_list <- app(unscaled_pred,
                               fun = calc_greenup_metrics,
                               cores = parallel::detectCores() - 2)
-  Sys.time()
+ # Sys.time()
   message("Finished Calculaing green-up metrics from spline")
   greenup_metrics_all <- c(greenup_metrics_list, rss_spline, dlcparams)
   
@@ -116,10 +116,12 @@ NDVI_splines <- lapply(seq_along(list.rast), function(j) {
   
   ## save output
   yr <- substr(list.rast[[j]], nchar(list.rast[[j]])-7,  nchar(list.rast[[j]])-4)
-  saveRDS(greenup_metrics_all, paste0("G:/Shared drives/wyo-coop-lasharr/PostDoc/CurveFitting/Wyoming_Updated/", folder_of_interest, "_SplineMetrics_Raster_", yr, ".rds"))
-  writeRaster(greenup_metrics_all, paste0("G:/Shared drives/wyo-coop-lasharr/PostDoc/CurveFitting/Wyoming_Updated/", folder_of_interest, "_SplineMetrics_Raster_", yr, ".tif"))
+  saveRDS(greenup_metrics_all, paste0("C:/Users/lwilde2/Desktop/NDVI extracted/", folder_of_interest, "_SplineMetrics_Raster_", yr, ".rds"))
+  writeRaster(greenup_metrics_all, paste0("C:/Users/lwilde2/Desktop/NDVI extracted/", folder_of_interest, "_SplineMetrics_Raster_", yr, ".tif"))
   
   message(paste0("FINISHED WITH RASTER ", list.rast[[j]]))
+  t2 <- Sys.time()
+  difftime(t2, t1, units = "mins")
   
   return(greenup_metrics_list)
 })
