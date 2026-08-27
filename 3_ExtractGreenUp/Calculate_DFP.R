@@ -81,7 +81,11 @@ populations <- setNames(
 
 ## for a single population, extracts green-up metrics at each gps location,
 ## joins migration timing, and computes surfing metrics
-extract_greenup_for_deer <- function(deer_sf, mig_df, rast_list, bands, rss_threshold = 2) {
+extract_greenup_for_deer <- function(deer_sf,
+                                     mig_df,
+                                     rast_list,
+                                     bands,
+                                     rss_threshold = 2) {
   
   ## add year, julian day, and migration season to the gps data
   deer_sf <- deer_sf %>%
@@ -182,7 +186,7 @@ all_deer_greenup <- map_dfr(
 ########## quality checks and summaries
 
 ## check how many locations have valid green-up extractions per herd
-all_deer_greenup %>%
+summaries <- all_deer_greenup %>%
   group_by(herd, year, season) %>%
   summarise(
     n_total      = n(),
@@ -193,6 +197,7 @@ all_deer_greenup %>%
   ) %>%
   print(n = Inf)
 
+summaries
 
 ########## save output
 
