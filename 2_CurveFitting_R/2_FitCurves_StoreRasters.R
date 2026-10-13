@@ -8,6 +8,8 @@ library(scales)
 
 folder_of_interest <- "Utah"
 
+## I made a change here.
+
 ## source functions
 source("C:/Users/Tayler/Documents/GitHub/DroughtSurfing/2_CurveFitting_R/Functions/Functions_FitSplines_Raster.R")
 source("C:/Users/Tayler/Documents/GitHub/DroughtSurfing/2_CurveFitting_R/Functions/Functions_FitDLC.R")
