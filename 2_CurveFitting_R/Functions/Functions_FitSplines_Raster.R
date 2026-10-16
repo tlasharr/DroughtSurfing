@@ -9,7 +9,7 @@ library(scales)
 
 #### functions ####
 
-## rescale function -- accepts explicit min/max so buffer periods
+## rescale function, has explicit min/max so buffer periods
 ## don't distort the scaling of the focal year
 scale_values <- function(x, x_min = NULL, x_max = NULL) {
   if (is.null(x_min)) x_min <- min(x, na.rm = TRUE)
@@ -24,7 +24,8 @@ unscale_function <- function(x, x_min, x_max) {
   x * (x_max - x_min) + x_min
 }
 
-## pad or trim elements to a fixed length for saving rasters with the same number of layers
+## pad or trim elements to a fixed length for saving rasters with the same
+## number of layers
 pad_or_trim <- function(x, length_out = 4) {
   x <- as.numeric(x)
   if (length(x) >= length_out) {
@@ -120,7 +121,7 @@ fit_weighted_spline <- function(x, y, spar = 0.5) {
     warning("missing or infinite values detected; skipping spline fitting.")
     return(NULL)
   }
-
+  
   spline_model <- try(smooth.spline(x, y, spar = spar), silent = TRUE)
   
   if (inherits(spline_model, "try-error")) {
@@ -137,7 +138,7 @@ fit_spline_raster <- function(pixel_ts) {
   fit_weighted_spline <- function(x, y, spar = 0.5) {
     if (any(is.na(x)) || any(is.na(y)) ||
         any(is.infinite(x)) || any(is.infinite(y))) return(NULL)
-
+    
     spline_model <- try(smooth.spline(x, y, spar = spar), silent = TRUE)
     
     if (inherits(spline_model, "try-error")) return(NULL)
@@ -148,12 +149,14 @@ fit_spline_raster <- function(pixel_ts) {
   if (all(is.na(pixel_ts))) return(rep(NA, 365))
   
   time_points  <- 1:length(pixel_ts)
-  spline_model <- fit_weighted_spline(time_points, as.numeric(pixel_ts), spar = 0.4)
+  spline_model <- fit_weighted_spline(time_points, 
+                                      as.numeric(pixel_ts), spar = 0.4)
   
   if (is.null(spline_model)) return(rep(NA, 365))
   
   predicted    <- predict(spline_model,
-                          seq(from = 1, to = length(pixel_ts), length.out = 365))
+                          seq(from = 1, to = length(pixel_ts),
+                              length.out = 365))
   predicted$y  <- pmin(pmax(predicted$y, 0), 1)
   
   return(predicted$y)
@@ -167,7 +170,7 @@ rss_spline_func <- function(pixel_ts) {
   fit_weighted_spline <- function(x, y, spar = 0.5) {
     if (any(is.na(x)) || any(is.na(y)) ||
         any(is.infinite(x)) || any(is.infinite(y))) return(NULL)
-
+    
     spline_model <- try(smooth.spline(x, y, spar = spar), silent = TRUE)
     
     if (inherits(spline_model, "try-error")) return(NULL)
@@ -187,22 +190,24 @@ rss_spline_func <- function(pixel_ts) {
 
 #### calc_greenup_metrics ####
 
-## output structure (36 elements):
-##   greenup_peak    [1:4]   -- doy of peak rate of increase for each green-up event
-##   senesc_peak     [5:8]   -- doy of peak rate of decrease for each senescence event
-##   greenup_start   [9:12]  -- doy of start of increasing segment
-##   greenup_end     [13:16] -- doy of end of increasing segment (where increase stops)
-##   green_period_end[17:20] -- doy of first senescence start AFTER each green-up peak
+## output structure (9 * n_events elements; 36 with the default n_events = 4):
+##   greenup_peak    [1:4]   - position of peak rate of increase for each green-up event
+##   senesc_peak     [5:8]   - position of peak rate of decrease for each senescence event
+##   greenup_start   [9:12]  - position of start of increasing segment
+##   greenup_end     [13:16] - position of end of increasing segment (where increase stops)
+##   green_period_end[17:20] - position of first senescence start AFTER each green-up peak
 ##                              (shared across green-up events with no senescence between them)
-##   senesc_start    [21:24] -- doy of start of decreasing segment
-##   senesc_end      [25:28] -- doy of end of decreasing segment
-##   greenup_change  [29:32] -- total ndvi change during green-up segment
-##   senesc_change   [33:36] -- total ndvi change during senescence segment
+##   senesc_start    [21:24] - position of start of decreasing segment
+##   senesc_end      [25:28] - position of end of decreasing segment
+##   greenup_change  [29:32] - total ndvi change during green-up segment
+##   senesc_change   [33:36] - total ndvi change during senescence segment
+## positions are indices into pixel_values (1, 2, 3, ...); the caller converts
+## them to days.
 
 calc_greenup_metrics <- function(pixel_values,
                                  ndvi_threshold = 0.05,
-                                 day_threshold  = 14) {
-  
+                                 day_threshold  = 14,
+                                 n_events       = 4) {
   require(tidyverse)
   require(terra)
   
@@ -240,7 +245,7 @@ calc_greenup_metrics <- function(pixel_values,
   }
   
   if (length(pixel_values) <= 1 || all(is.na(pixel_values))) {
-    return(rep(NA, 36))
+    return(rep(NA, 9 * n_events))
   }
   
   x <- 1:length(pixel_values)
@@ -342,6 +347,7 @@ calc_greenup_metrics <- function(pixel_values,
   ## if there is a senescence event between two peaks, the first peak uses
   ## that intermediate senescence start and the second peak gets the next one.
   ## if no senescence event follows a green-up peak, green_period_end is NA.
+  
   green_period_end <- if (length(inflection_points_increasing) == 0 ||
                           all(is.na(inflection_points_increasing)) ||
                           nrow(dec_periods) == 0) {
@@ -372,22 +378,23 @@ calc_greenup_metrics <- function(pixel_values,
     senesc_change    = senesc_change
   )
   
-  results_vector <- unlist(lapply(results_list, pad_or_trim, length_out = 4))
+  results_vector <- unlist(lapply(results_list, pad_or_trim, length_out = n_events))
   results_vector <- as.numeric(results_vector)
-  return(results_vector)   ## 36 elements
+  return(results_vector)   ## 9 * n_events elements
 }
 
 
 #### fit_spline_buffered ####
 
 ## number of 8-day composites to use as buffer on each side of the focal year
-## 6 images * 8 days = 48 days of context; events flagged within 21 days of
-## year boundary are set to NA as potentially artifactual
+## 6 images * 8 days = 48 days of context
 n_buffer_images   <- 6
-buffer_flag_days  <- 7
+buffer_flag_days  <- 7   ## no longer used (kept so existing calls/exports still work)
 
 ## fits the spline using a buffered window (year Y-1 tail + year Y + year Y+1 head)
-## to avoid edge artifacts near Jan 1 / Dec 31.
+## and extracts metrics across that whole window. an event belongs to year Y if
+## its PEAK falls on day 1-365; its start/end may extend into the buffer
+## (<1 = previous December, >365 = next January).
 ## scale factors are computed from year Y only so the buffer doesn't distort scaling.
 ## returns a 37-element vector: 36 green-up metrics + rss_spline
 
@@ -395,7 +402,7 @@ fit_spline_buffered <- function(pixel_ts_prev,
                                 pixel_ts_curr,
                                 pixel_ts_next,
                                 n_buffer       = n_buffer_images,
-                                flag_days      = buffer_flag_days,
+                                flag_days      = buffer_flag_days,   ## unused
                                 spar           = 0.4,
                                 ndvi_threshold = 0.05,
                                 day_threshold  = 14) {
@@ -404,10 +411,10 @@ fit_spline_buffered <- function(pixel_ts_prev,
   fit_weighted_spline_inner <- function(x, y, spar = 0.5) {
     if (any(is.na(x)) || any(is.na(y)) ||
         any(is.infinite(x)) || any(is.infinite(y))) return(NULL)
- 
+    
     spline_model <- try(smooth.spline(x, y, spar = spar), silent = TRUE)
     
-     if (inherits(spline_model, "try-error")) return(NULL)
+    if (inherits(spline_model, "try-error")) return(NULL)
     spline_model$y <- pmin(pmax(spline_model$y, 0), 1)
     return(spline_model)
   }
@@ -452,7 +459,6 @@ fit_spline_buffered <- function(pixel_ts_prev,
   
   time_points <- c(tp_prev, tp_curr, tp_next)
   
-  ## fit spline across full buffered window
   ## drop missing observations, keeping time/value pairs aligned
   keep <- !is.na(ts_scaled)
   if (sum(keep) < 5) return(rep(NA, 37))
@@ -462,55 +468,54 @@ fit_spline_buffered <- function(pixel_ts_prev,
   
   if (is.null(spline_model)) return(rep(NA, 37))
   
-  ## predict on daily grid for year Y only (DOY 1-365)
-  ## this is what gets passed to calc_greenup_metrics so all output
-  ## peak/start/end values are in DOY 1-365
-  daily_grid <- 1:365
+  ## predict on a daily grid spanning the whole buffered window.
+  ## days are relative to Jan 1 of year Y: <1 = previous Dec, >365 = next Jan.
+  ## always covers 1:365 even if a buffer is missing (first/last year).
+  tp_kept    <- time_points[keep]
+  grid_from  <- min(ceiling(min(tp_kept)), 1)
+  grid_to    <- max(floor(max(tp_kept)), 365)
+  daily_grid <- grid_from:grid_to
   pred_y     <- pmin(pmax(predict(spline_model, daily_grid)$y, 0), 1)
   
-  ## extract green-up metrics
-  metrics <- calc_greenup_metrics(pred_y,
-                                  ndvi_threshold = ndvi_threshold,
-                                  day_threshold  = day_threshold)
+  ## metrics over the full window, with extra slots for buffer-period events
+  n_slots <- 8
+  m_all <- calc_greenup_metrics(pred_y,
+                                ndvi_threshold = ndvi_threshold,
+                                day_threshold  = day_threshold,
+                                n_events       = n_slots)
   
-  ## output structure (36 elements):
-  ##   greenup_peak     [1:4]
-  ##   senesc_peak      [5:8]
-  ##   greenup_start    [9:12]
-  ##   greenup_end      [13:16]
-  ##   green_period_end [17:20]
-  ##   senesc_start     [21:24]
-  ##   senesc_end       [25:28]
-  ##   greenup_change   [29:32]
-  ##   senesc_change    [33:36]
+  ## rows = events, cols = fields in output order:
+  ## 1 greenup_peak, 2 senesc_peak, 3 greenup_start, 4 greenup_end,
+  ## 5 green_period_end, 6 senesc_start, 7 senesc_end,
+  ## 8 greenup_change, 9 senesc_change
+  m_all <- matrix(m_all, nrow = n_slots)
   
-  ## flag events with peaks within flag_days of year boundary as potentially
-  ## artifactual -- set peak and its associated start/end/change to NA
-  ## green-up peaks: indices 1:4; senescence peaks: indices 5:8
-  for (peak_group_start in c(1L, 5L)) {
-    for (j in 1:4) {
-      idx <- peak_group_start + j - 1L
-      val <- metrics[idx]
-      if (!is.na(val) && (val < flag_days || val > (365 - flag_days))) {
-        ## zero out this event: peak, start, end, green_period_end (if greenup),
-        ## and change
-        if (peak_group_start == 1L) {
-          ## green-up event
-          metrics[idx]      <- NA   ## greenup_peak
-          metrics[8L  + j]  <- NA   ## greenup_start
-          metrics[12L + j]  <- NA   ## greenup_end
-          metrics[16L + j]  <- NA   ## green_period_end
-          metrics[28L + j]  <- NA   ## greenup_change
-        } else {
-          ## senescence event
-          metrics[idx]      <- NA   ## senesc_peak
-          metrics[20L + j]  <- NA   ## senesc_start
-          metrics[24L + j]  <- NA   ## senesc_end
-          metrics[32L + j]  <- NA   ## senesc_change
-        }
-      }
-    }
+  ## calc_greenup_metrics returns grid positions; convert date columns to
+  ## days relative to Jan 1 of year Y (change columns are NDVI, untouched)
+  m_all[, 1:7] <- m_all[, 1:7] + (grid_from - 1)
+  
+  ## keep events whose PEAK falls in year Y; start/end may extend into the
+  ## buffer. events peaking in the buffer belong to the neighboring year.
+  pick_events <- function(cols) {
+    ev   <- m_all[, cols, drop = FALSE]
+    in_y <- !is.na(ev[, 1]) & ev[, 1] >= 1 & ev[, 1] <= 365
+    ev   <- ev[in_y, , drop = FALSE]
+    out  <- matrix(NA_real_, nrow = 4, ncol = length(cols))
+    n    <- min(4, nrow(ev))
+    if (n > 0) out[seq_len(n), ] <- ev[seq_len(n), ]
+    out
   }
+  gu <- pick_events(c(1, 3, 4, 5, 8))   # peak, start, end, green_period_end, change
+  se <- pick_events(c(2, 6, 7, 9))      # peak, start, end, change
+  
+  ## repack into the original 36-element layout:
+  ##   greenup_peak [1:4], senesc_peak [5:8], greenup_start [9:12],
+  ##   greenup_end [13:16], green_period_end [17:20], senesc_start [21:24],
+  ##   senesc_end [25:28], greenup_change [29:32], senesc_change [33:36]
+  metrics <- c(gu[, 1], se[, 1],           # greenup_peak, senesc_peak
+               gu[, 2], gu[, 3], gu[, 4],  # greenup_start, greenup_end, green_period_end
+               se[, 2], se[, 3],           # senesc_start, senesc_end
+               gu[, 5], se[, 4])           # greenup_change, senesc_change
   
   ## compute rss over year Y time points only for consistency with existing pipeline
   rss <- tryCatch({
