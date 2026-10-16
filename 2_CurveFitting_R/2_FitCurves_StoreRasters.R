@@ -164,8 +164,8 @@ NDVI_splines <- lapply(seq_along(list.rast), function(j) {
   })
   
   parallel::clusterExport(cl, varlist = c("n_buffer_images", "buffer_flag_days",
-                                          "fit_spline_buffered", "scale_values", 
-                                          "calc_greenup_metrics"))
+                                          "fit_spline_buffered", "scale_values",
+                                          "calc_greenup_metrics", "drop_floor_dips"))
   
   results_list <- parallel::parLapply(cl, pixel_list, function(px) {
     fit_spline_buffered(
