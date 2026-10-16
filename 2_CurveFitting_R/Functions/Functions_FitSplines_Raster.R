@@ -425,7 +425,13 @@ fit_spline_buffered <- function(pixel_ts_prev,
   time_points <- c(tp_prev, tp_curr, tp_next)
   
   ## fit spline across full buffered window
-  spline_model <- fit_weighted_spline_inner(time_points, ts_scaled, spar = spar)
+  ## drop missing observations, keeping time/value pairs aligned
+  keep <- !is.na(ts_scaled)
+  if (sum(keep) < 5) return(rep(NA, 37))
+  
+  ## fit spline across full buffered window
+  spline_model <- fit_weighted_spline_inner(time_points[keep], ts_scaled[keep], spar = spar)
+  
   if (is.null(spline_model)) return(rep(NA, 37))
   
   ## predict on daily grid for year Y only (DOY 1-365)
