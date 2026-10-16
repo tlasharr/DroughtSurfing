@@ -60,6 +60,28 @@ apply_temporal_smooth <- function(x, window_size = 3) {
   )
 }
 
+## remove short runs of the floor (fill) value that sit between real
+## observations well above the floor; long runs (winter baseline) are kept
+drop_floor_dips <- function(y, max_run = 2, frac = 0.25, tol = 1e-6) {
+  ok <- which(!is.na(y))
+  if (length(ok) < 5) return(y)
+  v   <- y[ok]
+  fl  <- min(v)
+  amp <- max(v) - fl
+  is_floor <- abs(v - fl) < tol
+  r      <- rle(is_floor)
+  ends   <- cumsum(r$lengths)
+  starts <- ends - r$lengths + 1
+  for (k in which(r$values & r$lengths <= max_run)) {
+    s <- starts[k]; e <- ends[k]
+    if (s == 1 || e == length(v)) next
+    if (v[s - 1] > fl + frac * amp && v[e + 1] > fl + frac * amp) {
+      y[ok[s:e]] <- NA
+    }
+  }
+  y
+}
+
 ## process segments and get inflection points
 process_segments_for_logistic_inflection <- function(data,
                                                      condition_column,
@@ -98,8 +120,9 @@ fit_weighted_spline <- function(x, y, spar = 0.5) {
     warning("missing or infinite values detected; skipping spline fitting.")
     return(NULL)
   }
-  weights      <- 1 / (abs(diff(c(0, y))) + 0.001)
-  spline_model <- try(smooth.spline(x, y, spar = spar, w = weights), silent = TRUE)
+
+  spline_model <- try(smooth.spline(x, y, spar = spar), silent = TRUE)
+  
   if (inherits(spline_model, "try-error")) {
     warning("error in smooth.spline fitting; returning NULL.")
     return(NULL)
@@ -114,8 +137,9 @@ fit_spline_raster <- function(pixel_ts) {
   fit_weighted_spline <- function(x, y, spar = 0.5) {
     if (any(is.na(x)) || any(is.na(y)) ||
         any(is.infinite(x)) || any(is.infinite(y))) return(NULL)
-    weights      <- 1 / (abs(diff(c(0, y))) + 0.001)
-    spline_model <- try(smooth.spline(x, y, spar = spar, w = weights), silent = TRUE)
+
+    spline_model <- try(smooth.spline(x, y, spar = spar), silent = TRUE)
+    
     if (inherits(spline_model, "try-error")) return(NULL)
     spline_model$y <- pmin(pmax(spline_model$y, 0), 1)
     return(spline_model)
@@ -143,8 +167,9 @@ rss_spline_func <- function(pixel_ts) {
   fit_weighted_spline <- function(x, y, spar = 0.5) {
     if (any(is.na(x)) || any(is.na(y)) ||
         any(is.infinite(x)) || any(is.infinite(y))) return(NULL)
-    weights      <- 1 / (abs(diff(c(0, y))) + 0.001)
-    spline_model <- try(smooth.spline(x, y, spar = spar, w = weights), silent = TRUE)
+
+    spline_model <- try(smooth.spline(x, y, spar = spar), silent = TRUE)
+    
     if (inherits(spline_model, "try-error")) return(NULL)
     spline_model$y <- pmin(pmax(spline_model$y, 0), 1)
     return(spline_model)
@@ -379,9 +404,10 @@ fit_spline_buffered <- function(pixel_ts_prev,
   fit_weighted_spline_inner <- function(x, y, spar = 0.5) {
     if (any(is.na(x)) || any(is.na(y)) ||
         any(is.infinite(x)) || any(is.infinite(y))) return(NULL)
-    weights      <- 1 / (abs(diff(c(0, y))) + 0.001)
-    spline_model <- try(smooth.spline(x, y, spar = spar, w = weights), silent = TRUE)
-    if (inherits(spline_model, "try-error")) return(NULL)
+ 
+    spline_model <- try(smooth.spline(x, y, spar = spar), silent = TRUE)
+    
+     if (inherits(spline_model, "try-error")) return(NULL)
     spline_model$y <- pmin(pmax(spline_model$y, 0), 1)
     return(spline_model)
   }
@@ -404,10 +430,12 @@ fit_spline_buffered <- function(pixel_ts_prev,
   }
   
   ts_buffered <- c(prev_buf, pixel_ts_curr, next_buf)
+  ts_buffered <- drop_floor_dips(ts_buffered)
   
-  ## compute scale factors from year Y only -- not the buffer
-  curr_min <- min(pixel_ts_curr, na.rm = TRUE)
-  curr_max <- max(pixel_ts_curr, na.rm = TRUE)
+  ## compute scale factors from (cleaned) year Y only -- not the buffer
+  curr_idx <- (n_buffer + 1):(n_buffer + n_curr)
+  curr_min <- min(ts_buffered[curr_idx], na.rm = TRUE)
+  curr_max <- max(ts_buffered[curr_idx], na.rm = TRUE)
   
   if (is.infinite(curr_min) || is.infinite(curr_max) ||
       curr_max == curr_min) return(rep(NA, 37))
