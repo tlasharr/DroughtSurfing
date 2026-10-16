@@ -19,7 +19,7 @@ library(patchwork)
 daymet_path           <- "G:/My drive/DAYMET_merged"
 base_path_savefigures <- "G:/Shared drives/wyo-coop-WestWideMuleDeerProject/SplineSurfingValidation/Figures"
 n_sample              <- 3000
-
+ref_rast_path <- ""
 
 #### step 1: helper functions to identify moisture events ####
 
