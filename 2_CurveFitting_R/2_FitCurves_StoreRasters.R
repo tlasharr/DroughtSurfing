@@ -117,7 +117,7 @@ NDVI_splines <- lapply(seq_along(list.rast), function(j) {
   
   
   #### extract buffer layers from neighboring years ####
-  ## we extract the last n_buffer_images from year Y-1 and the first
+  ## extract the last n_buffer_images from year Y-1 and the first
   ## n_buffer_images from year Y+1 as plain matrices so we can pass them
   ## per-pixel into fit_spline_buffered
   
@@ -143,32 +143,43 @@ NDVI_splines <- lapply(seq_along(list.rast), function(j) {
   
   message(paste0(yr, ": buffer matrices ready"))
   
-  
   #### fit buffered spline per pixel ####
-  ## terra::app doesn't easily support multi-raster inputs, so we use
-  ## a manual pixel loop here. for large rasters you may want to
-  ## parallelise this with parallel::mclapply or future.apply
-  
   n_pixels   <- nrow(curr_mat)
   n_out      <- 37   ## 36 metrics + rss_spline
   
   spline_metrics_mat <- matrix(NA, nrow = n_pixels, ncol = n_out)
   
   ## use parallel processing via parallel::mclapply
-  n_cores <- parallel::detectCores() - 2
+  n_cores <- parallel::detectCores() - 4
+  cl <- parallel::makeCluster(n_cores)
   
-  results_list <- parallel::mclapply(seq_len(n_pixels), function(i) {
+  # split each matrix into row-wise chunks, one per pixel
+  pixel_list <- lapply(seq_len(n_pixels), function(i) {
+    list(
+      pixel_ts_prev = as.numeric(prev_mat[i, ]),
+      pixel_ts_curr = as.numeric(curr_mat[i, ]),
+      pixel_ts_next = as.numeric(next_mat[i, ])
+    )
+  })
+  
+  parallel::clusterExport(cl, varlist = c("n_buffer_images", "buffer_flag_days",
+                                          "fit_spline_buffered", "scale_values", 
+                                          "calc_greenup_metrics"))
+  
+  results_list <- parallel::parLapply(cl, pixel_list, function(px) {
     fit_spline_buffered(
-      pixel_ts_prev  = as.numeric(prev_mat[i, ]),
-      pixel_ts_curr  = as.numeric(curr_mat[i, ]),
-      pixel_ts_next  = as.numeric(next_mat[i, ]),
+      pixel_ts_prev  = px$pixel_ts_prev,
+      pixel_ts_curr  = px$pixel_ts_curr,
+      pixel_ts_next  = px$pixel_ts_next,
       n_buffer       = n_buffer_images,
       flag_days      = buffer_flag_days,
       spar           = 0.4,
       ndvi_threshold = 0.05,
       day_threshold  = 14
     )
-  }, mc.cores = n_cores)
+  })
+  
+  parallel::stopCluster(cl)
   
   ## pack results into matrix
   for (i in seq_len(n_pixels)) {
