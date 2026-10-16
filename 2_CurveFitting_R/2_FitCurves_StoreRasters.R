@@ -55,7 +55,7 @@ all_band_names <- c(metric_band_names, dlc_band_names)
 
 list.rast <- list.files(ndvi_base_path)
 ## adjust index range as needed for the years you want to process
-list.rast <- list.rast[17:23]
+list.rast <- list.rast
 
 ## extract year strings for easy lookup
 yr_strings <- substr(list.rast, nchar(list.rast) - 7, nchar(list.rast) - 4)
@@ -92,7 +92,6 @@ NDVI_splines <- lapply(seq_along(list.rast), function(j) {
     NULL
   }
   
-  
   #### filter for valid pixels (require > 4 non-na observations) ####
   
   modisdata_curr <- app(ndvi_curr, function(x) {
@@ -111,7 +110,7 @@ NDVI_splines <- lapply(seq_along(list.rast), function(j) {
   message(paste0(yr, ": finished scaling"))
   
   
-  #### fit DLC (unchanged -- operates on scaled year Y only) ####
+  #### fit DLC ####
   
   dlcparams <- app(scaled_curr, fun = fundlc,
                    cores = parallel::detectCores() - 2)
