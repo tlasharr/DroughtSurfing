@@ -145,7 +145,9 @@ saveRDS(morans_results,
 print("computing moran's i on spring green-up date...")
 
 bands_date <- c("greenup_peak_1", "greenup_peak_2",
-                "greenup_peak_3", "greenup_peak_4",
+                "greenup_peak_3", "greenup_peak_4", 
+                "greenup_change_1",  "greenup_change_2",
+                "greenup_change_3",  "greenup_change_4",
                 "rss_spline", "maxIRGdate", "rss_dlc")
 
 morans_date_results <- map_dfr(years_of_interest, function(yr) {
@@ -162,23 +164,36 @@ morans_date_results <- map_dfr(years_of_interest, function(yr) {
   v <- values(r_mask)
   rm(r_mask); gc()
 
-  ## spline: earliest spring peak within window, rss filter applied
-  p_mat <- v[, 1:4, drop = FALSE]
-  p_mat[p_mat < spring_start_jday | p_mat > spring_end_jday] <- NA
-  sp_peak <- apply(p_mat, 1, function(x) {
-    x <- x[!is.na(x)]; if (length(x) == 0) NA_real_ else min(x)
-  })
-  sp_peak[!is.na(v[, 5]) & v[, 5] >= rss_threshold] <- NA
-
-  ## dlc: maxIRGdate within spring window, rss filter applied
-  dlc_peak <- v[, 6]
+  ## add the magnitude bands to bands_date (greenup_change)
+  peak_cols <- paste0("greenup_peak_", 1:4)
+  mag_cols  <- paste0("greenup_change_", 1:4)  
+  bands_date <- c(peak_cols, mag_cols, "rss_spline", "maxIRGdate", "rss_dlc")
+  
+  ## spline: highest-magnitude spring peak within window, rss filter applied
+  p_mat <- v[, peak_cols, drop = FALSE]
+  m_mat <- v[, mag_cols,  drop = FALSE]
+  
+  ## only consider peaks whose date falls in the spring window
+  in_win <- !is.na(p_mat) & p_mat >= spring_start_jday & p_mat <= spring_end_jday
+  m_mat[!in_win] <- NA
+  
+  ## column of the largest in-window peak for each pixel (vectorized, no apply)
+  m_tmp <- m_mat; m_tmp[is.na(m_tmp)] <- -Inf
+  best  <- max.col(m_tmp, ties.method = "first")
+  sp_peak <- p_mat[cbind(seq_len(nrow(p_mat)), best)]
+  sp_peak[rowSums(!is.na(m_mat)) == 0] <- NA
+  
+  sp_peak[!is.na(v[, "rss_spline"]) & v[, "rss_spline"] >= rss_threshold] <- NA
+  
+  ## dlc:
+  dlc_peak <- v[, "maxIRGdate"]
   dlc_peak[is.na(dlc_peak) |
              dlc_peak < spring_start_jday |
              dlc_peak > spring_end_jday   |
-             (!is.na(v[, 7]) & v[, 7] >= rss_threshold)] <- NA
-
-  rm(v, p_mat); gc()
-
+             (!is.na(v[, "rss_dlc"]) & v[, "rss_dlc"] >= rss_threshold)] <- NA
+  
+  rm(v, p_mat, m_mat, m_tmp, in_win, best); gc()
+ 
   ## re-load a single band as coordinate template for xyFromCell
   r_tmp   <- rast(path)[[1]]
   r_tmp_c <- mask(crop(r_tmp, md_vect), md_vect)
